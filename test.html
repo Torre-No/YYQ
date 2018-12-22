@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>threejs之骨骼动画</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body {
+            font-family: Monospace;
+            background-color: #000;
+            color: #fff;
+            margin: 0px;
+            overflow: hidden;
+        }
+
+        #info {
+            color: #fff;
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            z-index: 100;
+            display: block;
+        }
+
+        #info a {
+            color: #046;
+            font-weight: bold;
+        }
+    </style>
+    <script src="js/three.js"></script>
+    <!--添加模型加载器-->
+    <script src="js/inflate.min.js"></script>
+
+    <script src="js/FBXLoader.js"></script>
+    <!--添加控制器-->
+    <script src="js/OrbitControls.js"></script>
+
+</head>
+
+<body>
+<div id="info">
+
+
+
+    <button id="tack">doom</button>
+
+
+</div>
+<canvas id="cc"></canvas>
+<script>
+    let renderer = new THREE.WebGLRenderer({
+        canvas:document.querySelector("#cc"),
+        antialias:true
+    })
+    renderer.setSize(window.innerWidth,window.innerHeight)
+    renderer.setClearColor(0xa0a0a0)
+    renderer.shadowMap.enabled = true
+    let scene = new THREE.Scene()
+    scene.fog = new THREE.Fog(0xa0a0a0,200,2000)//场景添加雾化功能
+
+    let camera = new THREE.PerspectiveCamera(60,window.innerWidth/window.innerHeight,1,2000)
+    camera.position.set(30,108,65)
+
+    let clock = new THREE.Clock()//设置时钟对象，后面方便调用。
+
+    let c = new THREE.OrbitControls(camera,document.querySelector("#cc"))//设置控制器。方便操控3d世界。
+    c.update()
+
+    let light = new THREE.HemisphereLight(0xffffff,0x444444)
+    light.position.set(0,200,0)
+    scene.add(light)//设置半球光，并添加进去
+
+    let Dligth = new THREE.DirectionalLight(0xffffff,1)
+    Dligth.position.set(0,200,100)
+    Dligth.castShadow = true
+
+    //设置相机渲染面积
+    Dligth.shadow.camera.top = 180;
+    Dligth.shadow.camera.bottom = -100
+    Dligth.shadow.camera.left = -120
+    Dligth.shadow.camera.right = 120
+    //设置阴影细腻度 长*宽
+    Dligth.shadow.mapSize.width = 2048;  // default
+    Dligth.shadow.mapSize.height = 2048; // default
+    scene.add(Dligth)//设置平行光，并添加进去
+
+    let grid = new THREE.GridHelper(2000,10,0x708090,0x708090)//设置地面网格辅助线、
+    scene.add(grid)
+
+    let ground = new THREE.Mesh(new THREE.PlaneBufferGeometry(2000,2000),new THREE.MeshPhongMaterial({color:0xA9A9A9}))//设置地面
+    ground.receiveShadow = true
+    ground.position.set(0,-1,0)//位置下调下，放置共面，网格线
+    ground.rotation.x = -Math.PI/2
+
+    scene.add(ground)
+    let box,allDuration,timerLayer,action;
+    loadFbx()//加载模型动画
+    draw()
+    function draw(){
+        requestAnimationFrame(draw)
+
+        if(box){
+            box.mixer.update(clock.getDelta())//判断模型加载后，进行动画渲染
+        }
+
+        renderer.render(scene,camera)
+    }
+
+    function loadFbx(){
+        let loader = new THREE.FBXLoader()
+        loader.load('./animation/Dying.fbx',(object)=>{
+            object.mixer = new THREE.AnimationMixer(object)//动画播放器处理模型动画
+            console.log(object);
+            let animation = object.animations[0]//动画
+
+            allDuration = animation.duration//动画时长
+
+            timerLayer = allDuration/animation.tracks.length//总时长除以动画轨迹数组
+
+            action = object.mixer.clipAction(animation)//关键帧轨迹
+
+            object.traverse((e)=>{
+                if(e.isMesh){
+                    e.castShadow = true//允许模型本身对自己产生阴影
+                    e.receiveShadow = true//接受阴影渲染
+                }
+            })
+            box = object
+            scene.add(box)
+
+            domClick()
+        })
+    }
+
+    function domClick(){
+        document.querySelector("#tack").addEventListener("click",()=>{
+            action.reset().play()//点击后执行动画重置功能
+            let timer;
+            if(timer){
+                clearTimeout(timer)
+            }
+
+            timer = setTimeout(()=>{
+                action.paused = true
+                //我们算出来了动画总时长，所以在一个延时器里面，设置为总时长，时间到了，动画停止。
+            },allDuration*1000-100)
+        })
+
+    }
+
+
+</script>
+</body>
+
+</html>
